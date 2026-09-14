@@ -27,3 +27,4 @@ Architecture Decision Records: короткі документи «чому са
 | [0009](0009-pii-minimization.md) | Мінімізація PII | лише ім'я дитини + контакт батька |
 | [0010](0010-repo-layout.md) | Розкладка репо | monorepo, один пакет, два процеси; граф імпортів; інструменти |
 | [0011](0011-export-channel.md) | Канал експорту | пул (кнопка CSV) обов'язково; пуш у TG; email — за тригером |
+| [0012](0012-oxlint-instead-of-eslint.md) | Лінтер miniapp | oxlint замість eslint — уточнення ADR-0010, роль та сама |
