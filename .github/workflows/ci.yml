@@ -1,0 +1,62 @@
+# PR + push у main: make check з Postgres як service, окремо — lint/format/build miniapp.
+# Обидва job — required status checks у ruleset main (крок 6 плану).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: zoshyt
+          POSTGRES_USER: zoshyt
+          POSTGRES_PASSWORD: zoshyt
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U zoshyt -d zoshyt"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      # Ті самі значення, що в .env.example — щоб CI і локальна машина збігалися.
+      DB_URL: postgresql+asyncpg://zoshyt:zoshyt@localhost:5433/zoshyt
+      TELEGRAM_BOT_TOKEN: ci-fake-token
+      WEBAPP_URL: https://ci.invalid
+    steps:
+      - uses: actions/checkout@v7
+      # setup-uv з v8 не має рухомих major-тегів — лише точні версії.
+      - uses: astral-sh/setup-uv@v10.1.0
+      - run: uv sync --frozen
+      - run: make check
+      - name: Migrations apply on an empty database
+        run: uv run alembic upgrade head
+
+  miniapp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: miniapp/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: miniapp/pnpm-lock.yaml
+      - run: pnpm -C miniapp install --frozen-lockfile
+      - run: pnpm -C miniapp lint
+      - run: pnpm -C miniapp format:check
+      - run: pnpm -C miniapp build

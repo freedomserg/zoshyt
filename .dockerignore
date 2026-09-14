@@ -1,0 +1,15 @@
+.git/
+.venv/
+.env
+.vscode/
+.claude/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+miniapp/node_modules/
+miniapp/dist/
+docs/
+design/
+tests/

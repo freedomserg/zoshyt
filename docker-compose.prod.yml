@@ -1,0 +1,64 @@
+# VPS (ADR-0005). Published ports — лише caddy (80/443); решта — у внутрішній мережі.
+# Деплой:  IMAGE_TAG=<sha> docker compose -f docker-compose.prod.yml pull && \
+#          IMAGE_TAG=<sha> docker compose -f docker-compose.prod.yml up -d
+# Відкат — той самий рядок зі старим тегом. Порядок старту: postgres → migrate → api, bot.
+
+# Спільний блок для трьох сервісів з одного образу.
+x-app: &app
+  image: ghcr.io/freedomserg/zoshyt:${IMAGE_TAG:-latest}
+  env_file: .env
+  environment:
+    DB_URL: postgresql+asyncpg://zoshyt:${POSTGRES_PASSWORD}@postgres:5432/zoshyt
+  restart: unless-stopped
+  logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zoshyt
+      POSTGRES_USER: zoshyt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zoshyt -d zoshyt"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+  # One-shot: міграції лише тут, не на старті api/bot (CLAUDE.md).
+  migrate:
+    <<: *app
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *app
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  bot:
+    <<: *app
+    command: ["python", "-m", "zoshyt.bot"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

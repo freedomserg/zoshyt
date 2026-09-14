@@ -1,0 +1,104 @@
+[project]
+name = "zoshyt"
+version = "0.1.0"
+description = "Облік для репетиторів і міні-шкіл: Telegram Mini App + бот"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "aiogram>=3.31.0",
+    "alembic>=1.20.0",
+    "apscheduler>=3.11.3,<4",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.141.1",
+    "pydantic-settings>=2.15.0",
+    "sqlalchemy[asyncio]>=2.0.52",
+    "structlog>=26.1.0",
+    "uvicorn>=0.52.4",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "import-linter>=2.15",
+    "mypy>=2.3.1",
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.16.7",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
+
+# ---------------------------------------------------------------------------
+# Інструменти якості. Усі жене `make check`; те саме — CI.
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# E,F,W — базові помилки; I — сортування імпортів (замість isort);
+# UP — сучасний синтаксис 3.12; B — bugbear (типові пастки);
+# SIM — спрощення; RUF — правила ruff; ASYNC — блокуючі виклики в async.
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "ASYNC"]
+# RUF001-003 — «двозначні» unicode-літери (кирилична і/у/Н схожа на латинську).
+# Докстрінги й коментарі в проєкті українською — правило лише шумить.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+# Граф імпортів з ADR-0010 (README, розділ 2 «Конституція»).
+#   journal <- api, bot, notify    (journal не знає нікого)
+#   auth    <- api, bot
+#   db      <- journal, api, bot
+#   api !-> bot, bot !-> api       (спільне — лише через journal)
+[tool.importlinter]
+root_package = "zoshyt"
+# Потрібно, щоб контракти могли забороняти зовнішні пакети (fastapi, aiogram).
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "journal не знає нікого (api, bot, notify, auth)"
+type = "forbidden"
+source_modules = ["zoshyt.journal"]
+forbidden_modules = ["zoshyt.api", "zoshyt.bot", "zoshyt.notify", "zoshyt.auth"]
+
+[[tool.importlinter.contracts]]
+name = "journal не імпортує fastapi/aiogram"
+type = "forbidden"
+source_modules = ["zoshyt.journal"]
+forbidden_modules = ["fastapi", "starlette", "aiogram"]
+
+[[tool.importlinter.contracts]]
+name = "api і bot незалежні (спільне — лише через journal)"
+type = "independence"
+modules = ["zoshyt.api", "zoshyt.bot"]
+
+[[tool.importlinter.contracts]]
+name = "db не знає верхніх шарів"
+type = "forbidden"
+source_modules = ["zoshyt.db"]
+forbidden_modules = [
+    "zoshyt.journal",
+    "zoshyt.api",
+    "zoshyt.bot",
+    "zoshyt.notify",
+    "zoshyt.auth",
+]
+
+[[tool.importlinter.contracts]]
+name = "auth і notify не імпортують api/bot"
+type = "forbidden"
+source_modules = ["zoshyt.auth", "zoshyt.notify"]
+forbidden_modules = ["zoshyt.api", "zoshyt.bot"]

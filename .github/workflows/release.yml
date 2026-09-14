@@ -1,0 +1,60 @@
+# push у main → образ у GHCR (ghcr.io/freedomserg/zoshyt:<sha> і :latest)
+# → ssh-деплой на VPS: IMAGE_TAG=<sha> compose pull && up -d (migrate → api, bot).
+# Відкат на VPS — той самий рядок зі старим тегом, не пересборка.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/freedomserg/zoshyt:${{ github.sha }}
+            ghcr.io/freedomserg/zoshyt:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: publish-image
+    timeout-minutes: 10
+    # До появи VPS (крок 7 плану) деплой вимкнено: repo variable DEPLOY_ENABLED=true вмикає.
+    if: vars.DEPLOY_ENABLED == 'true'
+    steps:
+      # Без сторонніх ssh-actions: ключ і known_hosts кладемо самі.
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.VPS_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+      - name: Deploy
+        run: |
+          ssh deploy@${{ secrets.VPS_HOST }} \
+            'cd /opt/zoshyt \
+             && IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.prod.yml pull -q \
+             && IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.prod.yml up -d \
+             && docker image prune -f'

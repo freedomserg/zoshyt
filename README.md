@@ -221,7 +221,8 @@ docker run --rm hello-world
 brew install --cask visual-studio-code
 ```
 
-Розширення (⇧⌘X): **Python**, **Pylance**, **ESLint**. Спільні
+Розширення (⇧⌘X): **Python**, **Pylance**, **Ruff**, **Prettier**,
+**Oxc** (лінтер oxlint для TS/React, ADR-0012). Спільні
 налаштування (формат при збереженні через ruff тощо) вже в репо у
 `.vscode/settings.json` — нічого налаштовувати руками.
 (PyCharm Community — допустима альтернатива, якщо звичніше; але не
@@ -234,7 +235,8 @@ brew install --cask dbeaver-community
 ```
 
 Підключення до локального Postgres (після першого `make up`):
-host `localhost`, port `5432`, database/user/password — з твого `.env`.
+host `localhost`, port `5433` (не стандартний 5432 — щоб не конфліктувати
+з іншим локальним Postgres), database/user/password — з твого `.env`.
 Корисно відкривати таблицю `events` і дивитися jsonb-payload подій.
 
 ### 3.8 cloudflared — тунель для справжнього Telegram
@@ -337,6 +339,37 @@ make check              # усі перевірки: має бути зелен�
 make dev                # api + bot + vite разом
 ```
 
+### Перевірки окремо
+
+`make check` — це чотири інструменти поспіль. Коли щось червоне,
+зручно запускати винуватця окремо — через `make` або напряму:
+
+```bash
+make lint        # = uv run ruff check src tests && uv run ruff format --check src tests
+make typecheck   # = uv run mypy
+make imports     # = uv run lint-imports
+make test        # = uv run pytest -q
+```
+
+Ті самі команди без `make`, коли потрібні прапорці:
+
+```bash
+uv run ruff check --fix src tests      # лінт з авто-виправленням
+uv run ruff format src tests           # переформатувати файли (у make — лише --check)
+uv run mypy                            # типи (strict); конфіг у pyproject.toml
+uv run lint-imports                    # граф імпортів (конституція, розділ 2)
+uv run pytest tests/test_config.py     # тести з одного файлу
+```
+
+Префікс `uv run` виконує команду всередині `.venv` проєкту з
+версіями з `uv.lock`; без нього shell шукав би `ruff`/`mypy` у системі,
+де їх нема або вони іншої версії. Перед запуском `uv run` сам звіряє
+venv із lock-файлом, тому після `git pull` окремий `uv sync` не
+потрібен.
+
+Один раз після клонування: `uv run pre-commit install` — далі ruff
+запускається автоматично перед кожним комітом.
+
 Мінімум для `.env` на твоїй машині:
 
 ```
@@ -393,7 +426,7 @@ WEBAPP_URL=https://dev-k.zoshyt.in.ua
 | **React + TypeScript** | UI-бібліотека + типи для JS. |
 | **react-router** | Перемикання між 5 екранами всередині SPA. |
 | **@telegram-apps/sdk-react** | Місток до Telegram: initData, кольори теми, MainButton/BackButton. |
-| **ESLint + Prettier** | Лінт і формат для TS/React. |
+| **oxlint + Prettier** | Лінт (`pnpm -C miniapp lint`) і формат для TS/React. oxlint замість eslint — ADR-0012. |
 
 Свідомо НЕ використовуємо: Redux та інші state-бібліотеки (стан тримає
 бекенд), Next.js (SSR не потрібен), celery/redis (є APScheduler).

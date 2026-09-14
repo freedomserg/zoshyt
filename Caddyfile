@@ -1,0 +1,6 @@
+# TLS (Let's Encrypt) і HTTP→HTTPS редирект Caddy робить сам за іменем хоста.
+app.zoshyt.in.ua {
+	reverse_proxy api:8000
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000"
+}
