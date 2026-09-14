@@ -1,0 +1,15 @@
+# Перед кожним комітом — лише ruff (швидко). mypy/pytest — у `make check` і CI.
+# Активувати один раз після клонування: uv run pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
