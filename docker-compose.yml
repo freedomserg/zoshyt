@@ -1,0 +1,19 @@
+# dev: лише Postgres. api, bot і vite запускаються з хоста (`make dev`).
+# Major-тег postgres:17 — той самий у prod-compose, CI і restore-drill (ADR-0006).
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: zoshyt
+      POSTGRES_USER: zoshyt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zoshyt}
+    # Хост-порт 5433, щоб не конфліктувати з іншим локальним Postgres на 5432.
+    ports: ["5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zoshyt -d zoshyt"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+volumes:
+  pgdata:
