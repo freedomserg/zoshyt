@@ -36,7 +36,8 @@ jobs:
       WEBAPP_URL: https://ci.invalid
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # setup-uv з v8 не має рухомих major-тегів — лише точні версії.
+      - uses: astral-sh/setup-uv@v10.1.0
       - run: uv sync --frozen
       - run: make check
       - name: Migrations apply on an empty database
