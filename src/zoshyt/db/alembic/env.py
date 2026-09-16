@@ -1,7 +1,8 @@
 """Alembic env: async-шаблон (ADR-0002) — міграції виконуються через
 AsyncEngine і connection.run_sync().
 
-URL БД — з zoshyt.config (DB_URL), не з alembic.ini.
+URL БД — з zoshyt.config (DB_MIGRATE_URL, роль zoshyt_migrate — owner
+таблиць), не з alembic.ini. Застосунок під zoshyt_app міграцій не робить.
 """
 
 import asyncio
@@ -27,7 +28,7 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """Offline-режим: генерує SQL без підключення (`alembic upgrade head --sql`)."""
     context.configure(
-        url=get_settings().db_url,
+        url=get_settings().db_migrate_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -44,7 +45,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     # NullPool: одне з'єднання на запуск міграцій, без пулу.
-    engine = create_async_engine(get_settings().db_url, poolclass=pool.NullPool)
+    engine = create_async_engine(get_settings().db_migrate_url, poolclass=pool.NullPool)
     async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await engine.dispose()

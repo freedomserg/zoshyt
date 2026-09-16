@@ -1,17 +1,21 @@
 # dev: лише Postgres. api, bot і vite запускаються з хоста (`make dev`).
 # Major-тег postgres:17 — той самий у prod-compose, CI і restore-drill (ADR-0006).
+# Ролі zoshyt_migrate / zoshyt_app створює ops/db/init.sh при першому старті
+# порожнього volume; після змін у ньому — `docker compose down -v`.
 services:
   postgres:
     image: postgres:17
     environment:
       POSTGRES_DB: zoshyt
-      POSTGRES_USER: zoshyt
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zoshyt}
     # Хост-порт 5433, щоб не конфліктувати з іншим локальним Postgres на 5432.
     ports: ["5433:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./ops/db/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zoshyt -d zoshyt"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zoshyt"]
       interval: 2s
       timeout: 2s
       retries: 15
