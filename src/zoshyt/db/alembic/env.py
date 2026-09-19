@@ -13,6 +13,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
+import zoshyt.db.models  # noqa: F401  # реєструє таблиці в Base.metadata
 from zoshyt.config import get_settings
 from zoshyt.db.base import Base
 
@@ -25,10 +26,17 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def _db_url() -> str:
+    # Тести передають URL тестової бази через Config.attributes["db_url"]
+    # (tests/conftest.py); CLI (`uv run alembic ...`) бере DB_MIGRATE_URL з env.
+    override = config.attributes.get("db_url")
+    return str(override) if override else get_settings().db_migrate_url
+
+
 def run_migrations_offline() -> None:
     """Offline-режим: генерує SQL без підключення (`alembic upgrade head --sql`)."""
     context.configure(
-        url=get_settings().db_migrate_url,
+        url=_db_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -45,7 +53,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     # NullPool: одне з'єднання на запуск міграцій, без пулу.
-    engine = create_async_engine(get_settings().db_migrate_url, poolclass=pool.NullPool)
+    engine = create_async_engine(_db_url(), poolclass=pool.NullPool)
     async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await engine.dispose()
