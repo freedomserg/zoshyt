@@ -88,13 +88,20 @@ class Event(Base):
 
     # Глобальний і з дірками (sequence не відкочується) — НЕ порядок журналу.
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    school_id: Mapped[uuid.UUID] = mapped_column()  # тенант + стрім
+    # Тенант + стрім. FK без ON DELETE (NO ACTION): школи не видаляємо,
+    # а спроба видалення не має тихо ламати журнал.
+    school_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("schools.id", name="events_school_id_fkey")
+    )
     seq: Mapped[int] = mapped_column(Integer)
     event_type: Mapped[str] = mapped_column(Text)
     event_version: Mapped[int] = mapped_column(Integer)
     # PII живе тут (ADR-0009): у prod payload цілком не логувати.
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
-    actor_teacher_id: Mapped[uuid.UUID | None] = mapped_column()
+    # NULL — системні події без актора.
+    actor_teacher_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("teachers.id", name="events_actor_teacher_id_fkey")
+    )
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

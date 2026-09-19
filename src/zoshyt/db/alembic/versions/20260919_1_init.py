@@ -2,7 +2,8 @@
 
 Чернетка — autogenerate; прочитана і дописана руками:
 - REVOKE UPDATE, DELETE ON events FROM zoshyt_app — autogenerate грантів не бачить;
-- порядок таблиць і явні імена обмежень.
+- порядок таблиць (schools, teachers — до events, бо events має FK на обидві;
+  у downgrade events дропається першим) і явні імена обмежень.
 
 Revision ID: 20260919_1
 Revises:
@@ -88,6 +89,13 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),
+        # FK без ON DELETE (дефолтний NO ACTION): школи й викладачів не
+        # видаляємо, а спроба видалення не має тихо ламати журнал.
+        # actor_teacher_id nullable — системні події без актора.
+        sa.ForeignKeyConstraint(["school_id"], ["schools.id"], name="events_school_id_fkey"),
+        sa.ForeignKeyConstraint(
+            ["actor_teacher_id"], ["teachers.id"], name="events_actor_teacher_id_fkey"
+        ),
         # Канонічний порядок журналу; єдиний додатковий індекс V1.
         sa.UniqueConstraint("school_id", "seq", name="events_school_id_seq_key"),
     )
