@@ -14,6 +14,7 @@ def test_settings_from_values() -> None:
         telegram_bot_token="123:fake-token",
         webapp_url="https://example.invalid",
         db_url="postgresql+asyncpg://u:p@localhost/zoshyt",
+        db_migrate_url="postgresql+asyncpg://m:p@localhost/zoshyt",
     )
 
     assert settings.app_env == "dev"
@@ -30,4 +31,5 @@ def test_dev_auth_forbidden_in_prod() -> None:
             telegram_bot_token="123:fake-token",
             webapp_url="https://example.invalid",
             db_url="postgresql+asyncpg://u:p@localhost/zoshyt",
+            db_migrate_url="postgresql+asyncpg://m:p@localhost/zoshyt",
         )

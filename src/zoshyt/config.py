@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     auth_mode: Literal["telegram", "dev"] = "telegram"
     telegram_bot_token: str
     webapp_url: str
-    db_url: str
+    db_url: str  # роль zoshyt_app — api і bot
+    db_migrate_url: str  # роль zoshyt_migrate — лише alembic (ADR-0003)
     admin_chat_id: int | None = None
     hc_api_url: str | None = None
     hc_bot_url: str | None = None

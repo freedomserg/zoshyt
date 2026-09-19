@@ -341,6 +341,10 @@ make dev                # api + bot + vite разом
 
 ### Перевірки окремо
 
+Тести БД ходять у базу `zoshyt_test` у тому ж контейнері (міграції на
+неї накочує сам pytest), тому `make check` потребує запущеного
+`make up`. Без Postgres впадуть лише тести з `tests/test_db_*.py`.
+
 `make check` — це чотири інструменти поспіль. Коли щось червоне,
 зручно запускати винуватця окремо — через `make` або напряму:
 
@@ -377,8 +381,15 @@ APP_ENV=dev
 AUTH_MODE=dev
 TELEGRAM_BOT_TOKEN=<токен @zoshyt_dev_k_bot зі сховища>
 WEBAPP_URL=https://dev-k.zoshyt.in.ua
-# DB_URL / POSTGRES_PASSWORD — значення для локального compose, як в .env.example
+# DB_URL / DB_MIGRATE_URL / POSTGRES_PASSWORD — як в .env.example
 ```
+
+Про базу: ролі `zoshyt_app` (api, bot) і `zoshyt_migrate` (alembic)
+створює `ops/db/init.sh` при **першому** старті порожнього тому даних.
+Якщо цей скрипт змінився або база піднімалася до його появи — один раз
+`docker compose down -v && make up` (том видаляється разом з даними, у
+dev це нормально). `alembic upgrade head` ходить під `zoshyt_migrate`,
+тому в `.env` потрібні обидва URL.
 
 Два режими роботи з UI:
 

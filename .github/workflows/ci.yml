@@ -23,19 +23,27 @@ jobs:
         image: postgres:17
         env:
           POSTGRES_DB: zoshyt
-          POSTGRES_USER: zoshyt
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: zoshyt
         ports: ["5433:5432"]
         options: >-
-          --health-cmd "pg_isready -U zoshyt -d zoshyt"
+          --health-cmd "pg_isready -U postgres -d zoshyt"
           --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       # Ті самі значення, що в .env.example — щоб CI і локальна машина збігалися.
-      DB_URL: postgresql+asyncpg://zoshyt:zoshyt@localhost:5433/zoshyt
+      DB_URL: postgresql+asyncpg://zoshyt_app:zoshyt@localhost:5433/zoshyt
+      DB_MIGRATE_URL: postgresql+asyncpg://zoshyt_migrate:zoshyt@localhost:5433/zoshyt
       TELEGRAM_BOT_TOKEN: ci-fake-token
       WEBAPP_URL: https://ci.invalid
     steps:
       - uses: actions/checkout@v7
+      # Service container стартує до checkout, тож initdb-скрипт не змонтувати —
+      # той самий ops/db/init.sh виконується у вже запущеному контейнері.
+      - name: Create DB roles (same script as compose init)
+        run: >-
+          docker exec -i
+          -e POSTGRES_USER=postgres -e POSTGRES_DB=zoshyt -e POSTGRES_PASSWORD=zoshyt
+          ${{ job.services.postgres.id }} bash < ops/db/init.sh
       # setup-uv з v8 не має рухомих major-тегів — лише точні версії.
       - uses: astral-sh/setup-uv@v10.1.0
       - run: uv sync --frozen

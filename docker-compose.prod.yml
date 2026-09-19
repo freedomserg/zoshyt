@@ -8,7 +8,9 @@ x-app: &app
   image: ghcr.io/freedomserg/zoshyt:${IMAGE_TAG:-latest}
   env_file: .env
   environment:
-    DB_URL: postgresql+asyncpg://zoshyt:${POSTGRES_PASSWORD}@postgres:5432/zoshyt
+    # Дві ролі БД (ADR-0003); паролі спільні (POSTGRES_PASSWORD), ролі створює ops/db/init.sh.
+    DB_URL: postgresql+asyncpg://zoshyt_app:${POSTGRES_PASSWORD}@postgres:5432/zoshyt
+    DB_MIGRATE_URL: postgresql+asyncpg://zoshyt_migrate:${POSTGRES_PASSWORD}@postgres:5432/zoshyt
   restart: unless-stopped
   logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
 
@@ -18,11 +20,13 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: zoshyt
-      POSTGRES_USER: zoshyt
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes: [pgdata:/var/lib/postgresql/data]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./ops/db/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zoshyt -d zoshyt"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zoshyt"]
       interval: 5s
       timeout: 3s
       retries: 20
