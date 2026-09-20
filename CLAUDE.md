@@ -13,6 +13,10 @@ ADR повертається в обговорення, а не обходить
 - `make dev` — api (uvicorn --reload) + bot + vite разом
 - `uv run alembic revision -m "slug"` / `uv run alembic upgrade head`
 - `pnpm -C miniapp build`
+- Реліз-тег: `git tag vX.Y.Z && git push --tags` на коміті з main, ПІСЛЯ
+  зеленого Release (ADR-0013; ранній тег гучно падає — це запобіжник,
+  Re-run після Release). Відкат на VPS — `IMAGE_TAG=<X.Y.Z або sha12>
+  docker compose -f docker-compose.prod.yml up -d`
 
 ## Межі (enforcement: import-linter, не «на совість»)
 - journal ← api, bot, notify; auth ← api, bot; db ← journal, api, bot
@@ -59,3 +63,6 @@ ADR повертається в обговорення, а не обходить
   one-shot сервіс migrate, не на старті процесів
 - Необроблені винятки обох процесів → лог + повідомлення в
   ADMIN_CHAT_ID
+- prod-compose: `ports:` лише у caddy (80/443) і postgres на
+  `127.0.0.1:5432` (ADR-0014). Docker відкриває порти повз ufw —
+  без префікса `127.0.0.1:` база опиниться в інтернеті
