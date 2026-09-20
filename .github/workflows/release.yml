@@ -1,5 +1,6 @@
 # push у main → образ у GHCR (ghcr.io/freedomserg/zoshyt:<sha> і :latest)
-# → ssh-деплой на VPS: IMAGE_TAG=<sha> compose pull && up -d (migrate → api, bot).
+# → ssh-деплой на VPS: scp конфігів (compose, Caddyfile, ops/db/init.sh) →
+# IMAGE_TAG=<sha> compose pull && up -d (migrate → api, bot) → caddy reload.
 # Відкат на VPS — той самий рядок зі старим тегом, не пересборка.
 name: Release
 
@@ -43,7 +44,10 @@ jobs:
     timeout-minutes: 10
     # До появи VPS (крок 7 плану) деплой вимкнено: repo variable DEPLOY_ENABLED=true вмикає.
     if: vars.DEPLOY_ENABLED == 'true'
+    env:
+      VPS: deploy@${{ secrets.VPS_HOST }}
     steps:
+      - uses: actions/checkout@v7
       # Без сторонніх ssh-actions: ключ і known_hosts кладемо самі.
       - name: Setup SSH
         run: |
@@ -51,10 +55,28 @@ jobs:
           echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           echo "${{ secrets.VPS_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+      # Конфіги на VPS — завжди з того самого коміту, що й образ: руками там
+      # живе лише .env. scp пише у файл на місці (той самий inode), тож
+      # bind-mount Caddyfile у контейнері бачить новий вміст; -p зберігає +x на init.sh.
+      - name: Sync compose, Caddyfile and DB init script
+        run: |
+          ssh "$VPS" 'mkdir -p /opt/zoshyt/ops/db'
+          scp -p docker-compose.prod.yml Caddyfile "$VPS":/opt/zoshyt/
+          scp -p ops/db/init.sh "$VPS":/opt/zoshyt/ops/db/
+      # Відкат образу: на VPS той самий рядок зі старим IMAGE_TAG (конфіги лишаться
+      # новими). Відкат разом з конфігами: Re-run цього воркфлоу на старому коміті.
+      # caddy reload — бо up -d не перестворює контейнер через зміну змонтованого
+      # файлу; одна повторна спроба — на випадок щойно створеного контейнера.
       - name: Deploy
         run: |
-          ssh deploy@${{ secrets.VPS_HOST }} \
-            'cd /opt/zoshyt \
-             && IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.prod.yml pull -q \
-             && IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.prod.yml up -d \
-             && docker image prune -f'
+          ssh "$VPS" '
+            set -e
+            cd /opt/zoshyt
+            export IMAGE_TAG=${{ github.sha }}
+            compose="docker compose -f docker-compose.prod.yml"
+            $compose pull -q
+            $compose up -d
+            reload="$compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile"
+            $reload || { sleep 5; $reload; }
+            docker image prune -f
+          '
