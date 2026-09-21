@@ -1,6 +1,6 @@
 # dev: лише Postgres. api, bot і vite запускаються з хоста (`make dev`).
 # Major-тег postgres:17 — той самий у prod-compose, CI і restore-drill (ADR-0006).
-# Ролі zoshyt_migrate / zoshyt_app створює ops/db/init.sh при першому старті
+# Ролі zoshyt_migrate / zoshyt_app / zoshyt_readonly (ADR-0015) створює ops/db/init.sh при першому старті
 # порожнього volume; після змін у ньому — `docker compose down -v`.
 services:
   postgres:

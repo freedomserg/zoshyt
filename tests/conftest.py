@@ -4,7 +4,8 @@
 - Міграції накочуються один раз на сесію під zoshyt_migrate.
 - Між тестами — TRUNCATE під zoshyt_migrate (app цього права не має).
   Це лише тестова база; у справжньому журналі events ніхто нічого не чистить.
-- Тести ходять у БД під zoshyt_app — тією ж роллю, що api і bot.
+- Тести ходять у БД під zoshyt_app — тією ж роллю, що api і bot;
+  окрема фікстура — під zoshyt_readonly (ADR-0015).
 
 Потрібен живий Postgres: `make up`.
 """
@@ -55,6 +56,20 @@ async def app_engine(migrate_engine: AsyncEngine) -> AsyncIterator[AsyncEngine]:
             text("TRUNCATE events, school_members, teachers, schools RESTART IDENTITY")
         )
     engine = create_async_engine(_test_url(get_settings().db_url), poolclass=NullPool)
+    yield engine
+    await engine.dispose()
+
+
+@pytest.fixture
+async def readonly_engine(app_engine: AsyncEngine) -> AsyncIterator[AsyncEngine]:
+    """Engine під zoshyt_readonly (ADR-0015) — роль людини під ssh-тунелем.
+
+    Залежить від app_engine: база вже очищена, дані для читання вставляє app.
+    URL — з DB_URL заміною користувача: пароль у всіх ролей один (ADR-0015),
+    тож окрема змінна не потрібна.
+    """
+    url = _test_url(get_settings().db_url).set(username="zoshyt_readonly")
+    engine = create_async_engine(url, poolclass=NullPool)
     yield engine
     await engine.dispose()
 

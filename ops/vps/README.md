@@ -224,7 +224,8 @@ Actions → Release → останній прогін → Re-run all jobs (аб�
 merge у main).
 
 Перший `up` на порожньому volume виконає `ops/db/init.sh` (ролі
-zoshyt_migrate / zoshyt_app), потім `migrate` накотить ревізії, потім
+zoshyt_migrate / zoshyt_app / zoshyt_readonly, ADR-0015), потім
+`migrate` накотить ревізії, потім
 стартують api і bot. Caddy сам отримає сертифікат — для цього DNS з
 кроку 1 уже має вказувати на сервер.
 
@@ -248,12 +249,13 @@ curl -sSI http://app.zoshyt.in.ua | head -3       # 308 → https
 - [ ] Після цього прибрати умову `DEPLOY_ENABLED` з release.yml
       (як у lozar) окремим PR.
 
-## 12. DBeaver до prod-бази (ADR-0014)
+## 12. DBeaver до prod-бази (ADR-0014, ADR-0015)
 
 Postgres слухає лише loopback сервера. У DBeaver: Main — host
-`localhost`, port `5432`, database `zoshyt`, user `zoshyt_app`; вкладка
-SSH — host `<IP>`, user `deploy`, ключ `~/.ssh/zoshyt_admin`. Ходити
-роллю `zoshyt_app`: append-only гарантії діють і на людину.
+`localhost`, port `5432`, database `zoshyt`, user `zoshyt_readonly`,
+пароль — `POSTGRES_PASSWORD` з `.env`; вкладка SSH — host `<IP>`, user
+`deploy`, ключ `~/.ssh/zoshyt_admin`. Роль `zoshyt_readonly` має лише
+SELECT: «дивитися очима» фізично не може нічого записати.
 
 Підводний камінь з lozar: macOS віддає застарілу зону `Europe/Kiev`, а
 Postgres 17 відхиляє її на підключенні. У `dbeaver.ini` додати
