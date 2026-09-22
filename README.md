@@ -384,8 +384,10 @@ WEBAPP_URL=https://dev-k.zoshyt.in.ua
 # DB_URL / DB_MIGRATE_URL / POSTGRES_PASSWORD — як в .env.example
 ```
 
-Про базу: ролі `zoshyt_app` (api, bot) і `zoshyt_migrate` (alembic)
-створює `ops/db/init.sh` при **першому** старті порожнього тому даних.
+Про базу: ролі `zoshyt_app` (api, bot), `zoshyt_migrate` (alembic) і
+`zoshyt_readonly` (лише SELECT — для DBeaver: дивитися, не маючи змоги
+щось зіпсувати; пароль той самий) створює `ops/db/init.sh` при
+**першому** старті порожнього тому даних. Чому саме так — ADR-0015.
 Якщо цей скрипт змінився або база піднімалася до його появи — один раз
 `docker compose down -v && make up` (том видаляється разом з даними, у
 dev це нормально). `alembic upgrade head` ходить під `zoshyt_migrate`,

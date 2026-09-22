@@ -28,3 +28,6 @@ Architecture Decision Records: короткі документи «чому са
 | [0010](0010-repo-layout.md) | Розкладка репо | monorepo, один пакет, два процеси; граф імпортів; інструменти |
 | [0011](0011-export-channel.md) | Канал експорту | пул (кнопка CSV) обов'язково; пуш у TG; email — за тригером |
 | [0012](0012-oxlint-instead-of-eslint.md) | Лінтер miniapp | oxlint замість eslint — уточнення ADR-0010, роль та сама |
+| [0013](0013-manual-release-tags.md) | Реліз-теги | git-тег vX.Y.Z = псевдонім уже збудованого образу `:<sha12>`, не пересборка |
+| [0014](0014-postgres-loopback-admin-access.md) | Адмін-доступ до БД | виняток з ADR-0005: postgres на 127.0.0.1:5432 VPS, вхід лише ssh-тунелем |
+| [0015](0015-append-only-mechanics.md) | Механіка append-only | три ролі БД (migrate / app / readonly), REVOKE на events, seq видає journal, межі винятків |

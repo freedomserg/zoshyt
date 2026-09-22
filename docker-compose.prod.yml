@@ -1,6 +1,8 @@
-# VPS (ADR-0005). Published ports — лише caddy (80/443); решта — у внутрішній мережі.
-# Деплой:  IMAGE_TAG=<sha> docker compose -f docker-compose.prod.yml pull && \
-#          IMAGE_TAG=<sha> docker compose -f docker-compose.prod.yml up -d
+# VPS (ADR-0005). Published ports назовні — лише caddy (80/443); виняток — postgres
+# на loopback сервера для адмін-тунелю (ADR-0014). Решта — у внутрішній мережі.
+# Деплой робить release.yml; руками те саме:
+#   IMAGE_TAG=<sha12 або X.Y.Z> docker compose -f docker-compose.prod.yml pull && \
+#   IMAGE_TAG=<sha12 або X.Y.Z> docker compose -f docker-compose.prod.yml up -d
 # Відкат — той самий рядок зі старим тегом. Порядок старту: postgres → migrate → api, bot.
 
 # Спільний блок для трьох сервісів з одного образу.
@@ -22,6 +24,10 @@ services:
       POSTGRES_DB: zoshyt
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Лише loopback СЕРВЕРА — для адмін-доступу через ssh-тунель (DBeaver).
+    # Це НЕ вхідний порт назовні; префікс 127.0.0.1: не прибирати НІКОЛИ —
+    # Docker відкриває опубліковані порти повз ufw (ADR-0014).
+    ports: ["127.0.0.1:5432:5432"]
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./ops/db/init.sh:/docker-entrypoint-initdb.d/init.sh:ro

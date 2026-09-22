@@ -1,7 +1,8 @@
-# push у main → образ у GHCR (ghcr.io/freedomserg/zoshyt:<sha> і :latest)
+# push у main → образ у GHCR (ghcr.io/freedomserg/zoshyt:<sha12> і :latest)
 # → ssh-деплой на VPS: scp конфігів (compose, Caddyfile, ops/db/init.sh) →
-# IMAGE_TAG=<sha> compose pull && up -d (migrate → api, bot) → caddy reload.
-# Відкат на VPS — той самий рядок зі старим тегом, не пересборка.
+# IMAGE_TAG=<sha12> compose pull && up -d (migrate → api, bot) → caddy reload.
+# Тег = коміт: відкат на VPS — це `compose up` зі старим тегом, не пересборка.
+# Людські версії X.Y.Z — tag-release.yml (ADR-0013).
 name: Release
 
 on:
@@ -9,7 +10,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: release
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -20,8 +21,14 @@ jobs:
   publish-image:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.tag.outputs.sha12 }}
     steps:
       - uses: actions/checkout@v7
+      # 12 символів sha — той самий формат тегу, що й у lozar; його ж шукає tag-release.yml.
+      - name: Image tag = first 12 chars of commit sha
+        id: tag
+        run: echo "sha12=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
@@ -33,7 +40,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/freedomserg/zoshyt:${{ github.sha }}
+            ghcr.io/freedomserg/zoshyt:${{ steps.tag.outputs.sha12 }}
             ghcr.io/freedomserg/zoshyt:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -43,12 +50,14 @@ jobs:
     needs: publish-image
     timeout-minutes: 10
     # До появи VPS (крок 7 плану) деплой вимкнено: repo variable DEPLOY_ENABLED=true вмикає.
+    # Після першого вдалого деплою умову прибрати (як у lozar).
     if: vars.DEPLOY_ENABLED == 'true'
     env:
       VPS: deploy@${{ secrets.VPS_HOST }}
     steps:
       - uses: actions/checkout@v7
-      # Без сторонніх ssh-actions: ключ і known_hosts кладемо самі.
+      # Без сторонніх ssh-actions: ключ і known_hosts кладемо самі —
+      # менше чужого коду з доступом до секрету.
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -67,16 +76,23 @@ jobs:
       # новими). Відкат разом з конфігами: Re-run цього воркфлоу на старому коміті.
       # caddy reload — бо up -d не перестворює контейнер через зміну змонтованого
       # файлу; одна повторна спроба — на випадок щойно створеного контейнера.
+      # image prune — щоб старі образи не з'їли диск тихо. Саме `-a`: кожен образ
+      # тут має тег :<sha12> і ніколи не стає «висячим», тож звичайний `prune -f`
+      # не прибрав би нічого (у lozar він працював, поки там тягнувся :latest).
+      # `-a` прибирає образи без контейнерів; ті, що в роботі (наш поточний,
+      # postgres, caddy), не чіпає. until=168h — тиждень старих образів лишається
+      # на диску для миттєвого відкату; старіший тег docker просто стягне з GHCR.
+      # Стоїть ПІСЛЯ up -d під set -e: якщо деплой впав, нічого не видаляється.
       - name: Deploy
         run: |
           ssh "$VPS" '
             set -e
             cd /opt/zoshyt
-            export IMAGE_TAG=${{ github.sha }}
+            export IMAGE_TAG=${{ needs.publish-image.outputs.tag }}
             compose="docker compose -f docker-compose.prod.yml"
             $compose pull -q
             $compose up -d
             reload="$compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile"
             $reload || { sleep 5; $reload; }
-            docker image prune -f
+            docker image prune -af --filter "until=168h"
           '

@@ -1,6 +1,7 @@
-"""Схема V1: гарантії, які тримає БД, а не код (крок 4 плану, тести (а)–(д)).
+"""Схема V1: гарантії, які тримає БД, а не код (крок 4 плану і ADR-0015, тести (а)–(ж)).
 
-Усі запити — під роллю zoshyt_app, як у api і bot. Дані вигадані (ADR-0009).
+Тести (а)–(д) — під роллю zoshyt_app, як у api і bot; (е)–(ж) — під
+zoshyt_readonly, як людина під ssh-тунелем. Дані вигадані (ADR-0009).
 """
 
 import uuid
@@ -111,3 +112,43 @@ async def test_e_event_for_unknown_school_rejected(session: AsyncSession) -> Non
         await session.commit()
 
     assert getattr(exc_info.value.orig, "sqlstate", None) == FOREIGN_KEY_VIOLATION
+
+
+# --- Роль zoshyt_readonly (ADR-0015): людина під ssh-тунелем лише читає ---
+
+
+async def test_f_readonly_can_select_events(
+    app_engine: AsyncEngine, readonly_engine: AsyncEngine
+) -> None:
+    """(е) SELECT з events під zoshyt_readonly — ок."""
+    async with AsyncSession(app_engine) as s:
+        school = await _school(s)
+        s.add(_event(school.id, seq=1))
+        await s.commit()
+
+    async with AsyncSession(readonly_engine) as s:
+        assert await s.scalar(select(func.count()).select_from(Event)) == 1
+        assert await s.scalar(select(School.name)) == "Тестова школа"
+
+
+async def test_g_readonly_cannot_insert_event(
+    app_engine: AsyncEngine, readonly_engine: AsyncEngine
+) -> None:
+    """(є) INSERT у events під zoshyt_readonly → permission denied."""
+    async with AsyncSession(app_engine) as s:
+        # id беремо ДО commit: після нього об'єкт застарілий, а сесія закрита.
+        school_id = (await _school(s)).id
+        await s.commit()
+
+    async with AsyncSession(readonly_engine) as s:
+        s.add(_event(school_id, seq=1))
+        with pytest.raises(ProgrammingError, match="permission denied for table events"):
+            await s.commit()
+
+
+async def test_h_readonly_cannot_insert_school(readonly_engine: AsyncEngine) -> None:
+    """(ж) INSERT у schools під zoshyt_readonly → permission denied."""
+    async with AsyncSession(readonly_engine) as s:
+        s.add(School(id=uuid.uuid4(), name="Школа, якої не буде"))
+        with pytest.raises(ProgrammingError, match="permission denied for table schools"):
+            await s.commit()

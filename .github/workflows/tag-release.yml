@@ -1,0 +1,31 @@
+# Ручні реліз-теги (ADR-0013): git-тег v* ДОДАЄ людський тег-псевдонім до вже
+# збудованого образу в GHCR (просування того самого digest, НЕ пересборка).
+# Якщо образу :<sha12> нема (коміт не проходив main) — воркфлоу гучно падає;
+# це бажана поведінка: тегувати можна лише те, що вже пройшло CI і Release.
+name: Tag release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  alias-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Add version tag to existing manifest
+        run: |
+          SHORT=${GITHUB_SHA::12}
+          VER=${GITHUB_REF_NAME#v}
+          docker buildx imagetools create \
+            -t ghcr.io/freedomserg/zoshyt:"$VER" \
+            ghcr.io/freedomserg/zoshyt:"$SHORT"
