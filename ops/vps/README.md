@@ -219,9 +219,10 @@ Settings → Secrets and variables → Actions → Secrets:
 ssh-keyscan <IP> 2>/dev/null | pbcopy
 ```
 
-ОСТАННЬОЮ — вкладка Variables: `DEPLOY_ENABLED` = `true`. Потім
-Actions → Release → останній прогін → Re-run all jobs (або будь-який
-merge у main).
+Потім Actions → Release → останній прогін → Re-run all jobs (або
+будь-який merge у main). Job `deploy` запускається на кожен push у
+main без перемикачів: до першого деплою (2026-09-23) він був за
+умовою repo variable `DEPLOY_ENABLED`, яку після нього прибрано.
 
 Перший `up` на порожньому volume виконає `ops/db/init.sh` (ролі
 zoshyt_migrate / zoshyt_app / zoshyt_readonly, ADR-0015), потім
@@ -246,8 +247,6 @@ curl -sSI http://app.zoshyt.in.ua | head -3       # 308 → https
 - [ ] Ззовні відкриті лише 22, 80, 443: `nmap -Pn -p 22,80,443,5432,8000 <IP>`
       — 5432 і 8000 closed/filtered.
 - [ ] `ssh zoshyt-prod 'sudo ss -tlnp | grep 5432'` — лише `127.0.0.1:5432`.
-- [ ] Після цього прибрати умову `DEPLOY_ENABLED` з release.yml
-      (як у lozar) окремим PR.
 
 ## 12. DBeaver до prod-бази (ADR-0014, ADR-0015)
 
