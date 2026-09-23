@@ -49,9 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-image
     timeout-minutes: 10
-    # До появи VPS (крок 7 плану) деплой вимкнено: repo variable DEPLOY_ENABLED=true вмикає.
-    # Після першого вдалого деплою умову прибрати (як у lozar).
-    if: vars.DEPLOY_ENABLED == 'true'
     env:
       VPS: deploy@${{ secrets.VPS_HOST }}
     steps:
