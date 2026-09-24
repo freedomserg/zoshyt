@@ -1,0 +1,34 @@
+name: Задача
+description: Одна задача ≈ один PR
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Репо публічне: жодних реальних імен, телефонів,
+        токенів чи ping-URL — ні в тексті, ні на скриншотах.
+  - type: textarea
+    id: what
+    attributes:
+      label: Що
+      description: Що саме зробити, 1–3 речення.
+    validations:
+      required: true
+  - type: textarea
+    id: refs
+    attributes:
+      label: Посилання
+      description: ADR, бандл design/handoff/, пов'язані issues.
+      placeholder: "ADR-0015; design/handoff/groups/; #12"
+  - type: textarea
+    id: done
+    attributes:
+      label: Вихід
+      description: Як перевіряємо, що готово. Перевірюване, а не «зроблено».
+      placeholder: "- make check зелений\n- …"
+    validations:
+      required: true
+  - type: textarea
+    id: out
+    attributes:
+      label: Не входить
+      description: Що свідомо лишається за межами задачі.
