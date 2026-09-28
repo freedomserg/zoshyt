@@ -7,6 +7,10 @@ Postgres 17, React + Vite + TS (miniapp/), Docker Compose, Caddy у
 проді. Рішення і причини — docs/adr/README.md; суперечність коду з
 ADR повертається в обговорення, а не обходиться в коді.
 
+## Глосарій
+- `school` у коді й БД = «заклад» в UI (тип — `schools.kind`,
+  ADR-0017); таблицю й `school_id` не перейменовувати
+
 ## Команди
 - `make up` — Postgres у контейнері
 - `make check` — ruff + mypy + import-linter + pytest (те саме жене CI)
